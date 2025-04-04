@@ -96,21 +96,26 @@ class TeamBuilderGUI:
         for col_index, col in enumerate(header):
             lbl = ttk.Label(self.inner_frame, text=col, font=("Arial", 10, "bold"))
             lbl.grid(row=0, column=col_index, padx=5, pady=2)
-            if col in ["First Name", "Last Name"]:
-                lbl.bind("<Button-1>", lambda e, col_name=col: self.sort_by_column(col_name))
+            if col in ["First Name", "Last Name", "Skill", "Team", "Gender"]:
+                lbl.bind("<Button-1>", lambda e, c=col: self.sort_by_column(c))
 
         df = self.manager.get_all_players()
         if self.gender_filter.get() != "All":
             df = df[df['Gender'].str.lower() == self.gender_filter.get().lower()]
 
         if self.sort_column:
-            df = df.sort_values(by=self.sort_column, key=lambda col: col.str.lower() if col.dtype == 'object' else col, ascending=not self.sort_reverse)
+            df = df.sort_values(
+    by=['Checked In', self.sort_column],
+    key=lambda col: col.str.lower() if col.dtype == 'object' else col,
+    ascending=[False, not self.sort_reverse]
+).reset_index(drop=True)
 
-        for row_num, (idx, row) in enumerate(df.iterrows(), start=1):
-            check_var = tk.BooleanVar(value=row['Checked In'])
-            check = ttk.Checkbutton(self.inner_frame, variable=check_var, command=lambda i=idx, var=check_var: self.manager.set_checked_in(i, var.get()))
+        for row_num, (_, row) in enumerate(df.iterrows(), start=1):
+            check_var = tk.BooleanVar(value=bool(row['Checked In']))
+            command = lambda name=row['First Name'], last=row['Last Name'], gender=row['Gender'], var=check_var: self.set_checked_in_by_identity(name, last, gender, var.get())
+            check = ttk.Checkbutton(self.inner_frame, variable=check_var, command=command)
             check.grid(row=row_num, column=0, padx=5, pady=2)
-            self.check_vars[idx] = check_var
+            # No need to track check_vars by index anymore
 
             ttk.Label(self.inner_frame, text=row['First Name']).grid(row=row_num, column=1)
             ttk.Label(self.inner_frame, text=row['Last Name']).grid(row=row_num, column=2)
@@ -118,7 +123,7 @@ class TeamBuilderGUI:
 
             skill_lbl = ttk.Label(self.inner_frame, text=row['Skill'])
             skill_lbl.grid(row=row_num, column=4)
-            skill_lbl.bind("<Double-1>", lambda e, i=idx: self.edit_skill(i))
+            skill_lbl.bind("<Double-1>", lambda e, i=row_num: self.edit_skill(i))
 
             ttk.Label(self.inner_frame, text=row['Team'] if pd.notna(row['Team']) else "").grid(row=row_num, column=5)
 
@@ -142,7 +147,7 @@ class TeamBuilderGUI:
 
             table = ttk.Treeview(frame, columns=("First Name", "Last Name", "Gender", "Skill"), show="headings")
             for col in table["columns"]:
-                table.heading(col, text=col)
+                table.heading(col, text=col, command=lambda c=col, t=table, df=team_df: self.sort_team_table(t, df, c))
                 table.column(col, width=100)
 
             for _, row in team_df.iterrows():
@@ -194,7 +199,38 @@ class TeamBuilderGUI:
 
         ttk.Button(win, text="Add", command=submit).grid(row=4, column=0, columnspan=2, pady=10)
 
+    def sort_team_table(self, table, df, column):
+        if not hasattr(table, 'last_sorted_column'):
+            table.last_sorted_column = None
+            table.sort_reverse = False
+
+        if table.last_sorted_column == column:
+            table.sort_reverse = not table.sort_reverse
+        else:
+            table.last_sorted_column = column
+            table.sort_reverse = False
+
+        sorted_df = df.sort_values(
+            by=column,
+            key=lambda col: col.str.lower() if col.dtype == 'object' else col,
+            ascending=not table.sort_reverse
+        )
+
+        for row in table.get_children():
+            table.delete(row)
+        for _, row in sorted_df.iterrows():
+            table.insert("", "end", values=(row['First Name'], row['Last Name'], row['Gender'], row['Skill']))
+
+    def set_checked_in_by_identity(self, first_name, last_name, gender, checked_in):
+        df = self.manager.get_all_players()
+        match = df[(df['First Name'] == first_name) & (df['Last Name'] == last_name) & (df['Gender'] == gender)]
+        if not match.empty:
+            self.manager.set_checked_in(match.index[0], checked_in)
+
     def generate_teams(self):
+        # Sync checkbox states back to manager
+        for idx, var in self.check_vars.items():
+            self.manager.set_checked_in(idx, var.get())
         # Clear team assignment for any player who is no longer checked in
         for idx, row in self.manager.get_all_players().iterrows():
             if not row['Checked In']:
