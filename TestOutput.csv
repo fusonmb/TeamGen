@@ -1,50 +1,49 @@
 First Name,Last Name,Gender,Skill,Checked In,Team,New,Modified
-Stacey,Waldrup,female,1,True,Team 1,False,True
-Emily,Woolridge,female,5,False,,False,False
-Nathan,Woolridge,male,5,False,,False,False
-Drew,Wotton,male,5,True,Team 1,False,False
+Stacey,Waldrup,female,5,True,Team 1,False,False
+Emily,Woolridge,female,5,True,Team 2,False,False
+Nathan,Woolridge,male,5,True,Team 1,False,False
+Drew,Wotton,male,5,False,,False,False
 Kevin,Farney,male,5,True,Team 2,False,False
-Anthony,Rabbani,male,4,True,Team 3,False,True
-Erin,Low,female,5,True,Team 2,False,False
-Jeno,Saghi,male,5,True,Team 4,False,False
-Cari,Hanrahan,female,5,True,Team 3,False,False
-Tim,Allen,male,5,True,Team 5,False,False
-Charis,Thompson,female,5,False,,False,False
-Jason,Sanderson,male,5,True,Team 1,False,False
-Hugh,Carey,male,5,True,Team 2,False,False
-ben,hagan,male,5,True,Team 3,False,False
-Caitlin,Tamblyn,female,5,True,Team 4,False,False
-David,Sang,male,5,True,Team 4,False,False
-Bailey,Parton,female,5,True,Team 5,False,False
+Anthony,Rabbani,male,5,False,,False,False
+Erin,Low,female,5,True,Team 1,False,False
+Jeno,Saghi,male,5,False,,False,False
+Cari,Hanrahan,female,5,False,,False,False
+Tim,Allen,male,5,True,Team 1,False,False
+Charis,Thompson,female,5,True,Team 2,False,False
+Jason,Sanderson,male,5,True,Team 2,False,False
+Hugh,Carey,male,5,True,Team 1,False,False
+ben,hagan,male,5,True,Team 2,False,False
+Caitlin,Tamblyn,female,5,True,Team 1,False,False
+David,Sang,male,5,True,Team 1,False,False
+Bailey,Parton,female,5,True,Team 2,False,False
 Kelly,Modrick,female,5,True,Team 1,False,False
-Jeff,Tamblyn,male,5,True,Team 5,False,False
+Jeff,Tamblyn,male,5,True,Team 2,False,False
 Emily,King,female,5,True,Team 2,False,False
 Dusty,LaFrance,male,5,True,Team 1,False,False
 Chad,Bowers,male,5,True,Team 2,False,False
-Devin,Bunce,male,5,True,Team 3,False,False
-David ,Jensen,male,5,True,Team 4,False,False
-Lara,Kreuter,female,5,True,Team 3,False,False
-Sam,Eden,male,5,True,Team 5,False,False
-Nicholas,Battaglino,male,5,True,Team 1,False,False
-Adam,Sandstedt,male,5,True,Team 2,False,False
-Cole,King,male,5,True,Team 3,False,False
-Cameron,Reese,male,5,True,Team 4,False,False
-Gregory,Benavidez,male,5,True,Team 5,False,False
+Devin,Bunce,male,5,True,Team 1,False,False
+David ,Jensen,male,5,True,Team 2,False,False
+Lara,Kreuter,female,5,True,Team 1,False,False
+Sam,Eden,male,5,True,Team 1,False,False
+Nicholas,Battaglino,male,5,True,Team 2,False,False
+Adam,Sandstedt,male,5,True,Team 1,False,False
+Cole,King,male,5,True,Team 2,False,False
+Cameron,Reese,male,5,True,Team 1,False,False
+Gregory,Benavidez,male,5,True,Team 2,False,False
 Adam,Neu,male,5,True,Team 1,False,False
 Peter,Heidlauf,male,5,True,Team 2,False,False
-Angel,Coronado,male,5,True,Team 3,False,False
-Olivia,Daniels,female,5,True,Team 4,False,False
-Amanda,Hardcastle,female,5,True,Team 5,False,False
-Bethany,Lassen,female,5,True,Team 1,False,False
-cody,BLAKE,male,5,True,Team 4,False,False
-Ian,Vickers,male,5,True,Team 5,False,False
-Thomas,St Jean,male,5,True,Team 1,False,False
-Millie,Livingston,female,5,True,Team 2,False,False
-Glenda Leticia,Sola Gonzales,female,5,True,Team 3,False,False
-Randall,Forseth,male,5,True,Team 2,False,False
-Judah,Voss,male,5,True,Team 3,False,False
-Kiana,Adams,female,5,True,Team 4,False,False
-David,Sun,male,5,True,Team 4,False,False
-Leslie,Newton,female,5,True,Team 5,False,False
-Addison,Worley,male,5,True,Team 5,False,False
-aaa,bbb,male,2,True,Team 1,True,False
+Angel,Coronado,male,5,True,Team 1,False,False
+Olivia,Daniels,female,5,True,Team 2,False,False
+Amanda,Hardcastle,female,5,True,Team 1,False,False
+Bethany,Lassen,female,5,True,Team 2,False,False
+cody,BLAKE,male,5,True,Team 2,False,False
+Ian,Vickers,male,5,True,Team 1,False,False
+Thomas,St Jean,male,5,True,Team 2,False,False
+Millie,Livingston,female,5,True,Team 1,False,False
+Glenda Leticia,Sola Gonzales,female,5,True,Team 2,False,False
+Randall,Forseth,male,5,True,Team 1,False,False
+Judah,Voss,male,5,True,Team 2,False,False
+Kiana,Adams,female,5,True,Team 1,False,False
+David,Sun,male,5,True,Team 1,False,False
+Leslie,Newton,female,5,True,Team 2,False,False
+Addison,Worley,male,5,True,Team 2,False,False

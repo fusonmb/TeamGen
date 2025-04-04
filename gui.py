@@ -20,7 +20,22 @@ class TeamBuilderGUI:
         self.setup_widgets()
 
     def setup_widgets(self):
-        frame = ttk.Frame(self.root, padding=10)
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill=tk.BOTH, expand=True)
+
+        # Main tab
+        self.main_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.main_frame, text="Players")
+
+        self.setup_main_tab(self.main_frame)
+
+        # Teams tab
+        self.teams_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.teams_frame, text="Teams")
+        self.team_tables = []
+
+    def setup_main_tab(self, parent):
+        frame = ttk.Frame(parent, padding=10)
         frame.grid(row=0, column=0, sticky="nsew")
 
         load_btn = ttk.Button(frame, text="Load CSV", command=self.load_csv)
@@ -42,7 +57,7 @@ class TeamBuilderGUI:
         gender_options = ttk.OptionMenu(frame, self.gender_filter, "All", "All", "Male", "Female", command=lambda _: self.refresh_tree())
         gender_options.grid(row=0, column=6, padx=5, pady=5)
 
-        self.tree_frame = ttk.Frame(self.root)
+        self.tree_frame = ttk.Frame(parent)
         self.tree_frame.grid(row=1, column=0, sticky="nsew")
 
         self.tree_canvas = tk.Canvas(self.tree_frame)
@@ -57,8 +72,8 @@ class TeamBuilderGUI:
         self.inner_frame = ttk.Frame(self.tree_canvas)
         self.tree_canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
 
-        self.root.rowconfigure(1, weight=1)
-        self.root.columnconfigure(0, weight=1)
+        parent.rowconfigure(1, weight=1)
+        parent.columnconfigure(0, weight=1)
 
     def load_csv(self):
         file_path = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
@@ -106,6 +121,35 @@ class TeamBuilderGUI:
             skill_lbl.bind("<Double-1>", lambda e, i=idx: self.edit_skill(i))
 
             ttk.Label(self.inner_frame, text=row['Team'] if pd.notna(row['Team']) else "").grid(row=idx+1, column=5)
+
+        self.refresh_team_tables()
+
+    def refresh_team_tables(self):
+        for widget in self.teams_frame.winfo_children():
+            widget.destroy()
+        self.team_tables.clear()
+
+        df = self.manager.get_all_players()
+        assigned = df[df['Team'].notna()]
+
+        team_names = sorted(assigned['Team'].dropna().unique())
+
+        for team_name in team_names:
+            team_df = assigned[assigned['Team'] == team_name]
+
+            frame = ttk.LabelFrame(self.teams_frame, text=team_name)
+            frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+            table = ttk.Treeview(frame, columns=("First Name", "Last Name", "Gender", "Skill"), show="headings")
+            for col in table["columns"]:
+                table.heading(col, text=col)
+                table.column(col, width=100)
+
+            for _, row in team_df.iterrows():
+                table.insert("", "end", values=(row['First Name'], row['Last Name'], row['Gender'], row['Skill']))
+
+            table.pack(fill=tk.BOTH, expand=True)
+            self.team_tables.append(table)
 
     def sort_by_column(self, column):
         if self.sort_column == column:
