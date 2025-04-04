@@ -1,8 +1,8 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
-from player_manager import PlayerManager
 import pandas as pd
+from player_manager import PlayerManager
 import team_generator
 
 class TeamBuilderGUI:
@@ -13,6 +13,9 @@ class TeamBuilderGUI:
         self.manager = PlayerManager()
         self.num_teams = tk.IntVar(value=2)
         self.check_vars = {}
+        self.sort_column = None
+        self.sort_reverse = False
+        self.gender_filter = tk.StringVar(value="All")
 
         self.setup_widgets()
 
@@ -20,7 +23,6 @@ class TeamBuilderGUI:
         frame = ttk.Frame(self.root, padding=10)
         frame.grid(row=0, column=0, sticky="nsew")
 
-        # Buttons and controls
         load_btn = ttk.Button(frame, text="Load CSV", command=self.load_csv)
         load_btn.grid(row=0, column=0, padx=5, pady=5)
 
@@ -37,7 +39,9 @@ class TeamBuilderGUI:
         add_btn = ttk.Button(frame, text="Add Player", command=self.add_player_window)
         add_btn.grid(row=0, column=5, padx=5, pady=5)
 
-        # Treeview with checkboxes for check-in
+        gender_options = ttk.OptionMenu(frame, self.gender_filter, "All", "All", "Male", "Female", command=lambda _: self.refresh_tree())
+        gender_options.grid(row=0, column=6, padx=5, pady=5)
+
         self.tree_frame = ttk.Frame(self.root)
         self.tree_frame.grid(row=1, column=0, sticky="nsew")
 
@@ -75,9 +79,19 @@ class TeamBuilderGUI:
 
         header = ["Checked In", "First Name", "Last Name", "Gender", "Skill", "Team"]
         for col_index, col in enumerate(header):
-            ttk.Label(self.inner_frame, text=col, font=("Arial", 10, "bold")).grid(row=0, column=col_index, padx=5, pady=2)
+            lbl = ttk.Label(self.inner_frame, text=col, font=("Arial", 10, "bold"))
+            lbl.grid(row=0, column=col_index, padx=5, pady=2)
+            if col in ["First Name", "Last Name"]:
+                lbl.bind("<Button-1>", lambda e, c=col: self.sort_by_column(c))
 
-        for idx, row in self.manager.get_all_players().iterrows():
+        df = self.manager.get_all_players()
+        if self.gender_filter.get() != "All":
+            df = df[df['Gender'].str.lower() == self.gender_filter.get().lower()]
+
+        if self.sort_column:
+            df = df.sort_values(by=self.sort_column, ascending=not self.sort_reverse)
+
+        for idx, row in df.iterrows():
             check_var = tk.BooleanVar(value=row['Checked In'])
             check = ttk.Checkbutton(self.inner_frame, variable=check_var, command=lambda i=idx, var=check_var: self.manager.set_checked_in(i, var.get()))
             check.grid(row=idx+1, column=0, padx=5, pady=2)
@@ -92,6 +106,14 @@ class TeamBuilderGUI:
             skill_lbl.bind("<Double-1>", lambda e, i=idx: self.edit_skill(i))
 
             ttk.Label(self.inner_frame, text=row['Team'] if pd.notna(row['Team']) else "").grid(row=idx+1, column=5)
+
+    def sort_by_column(self, column):
+        if self.sort_column == column:
+            self.sort_reverse = not self.sort_reverse
+        else:
+            self.sort_column = column
+            self.sort_reverse = False
+        self.refresh_tree()
 
     def edit_skill(self, index):
         new_value = tk.simpledialog.askinteger("Edit Skill", "Enter new skill:")
