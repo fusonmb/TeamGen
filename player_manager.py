@@ -8,7 +8,7 @@ class PlayerManager:
 
     def load_from_csv(self, file_path):
         df = pd.read_csv(file_path)
-        df['Checked In'] = False
+        df['Checked In'] = True
         df['Team'] = None
         df['New'] = False
         df['Modified'] = False

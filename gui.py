@@ -11,7 +11,7 @@ class TeamBuilderGUI:
         self.root.title("Team Generator")
 
         self.manager = PlayerManager()
-        self.num_teams = tk.IntVar(value=2)
+        self.num_teams = tk.IntVar(value=4)
         self.check_vars = {}
         self.sort_column = None
         self.sort_reverse = False
@@ -56,6 +56,9 @@ class TeamBuilderGUI:
 
         gender_options = ttk.OptionMenu(frame, self.gender_filter, "All", "All", "Male", "Female", command=lambda _: self.refresh_tree())
         gender_options.grid(row=0, column=6, padx=5, pady=5)
+
+        toggle_btn = ttk.Button(frame, text="Toggle Check-In", command=self.toggle_all_checkin)
+        toggle_btn.grid(row=0, column=7, padx=5, pady=5)
 
         self.tree_frame = ttk.Frame(parent)
         self.tree_frame.grid(row=1, column=0, sticky="nsew")
@@ -123,7 +126,7 @@ class TeamBuilderGUI:
 
             skill_lbl = ttk.Label(self.inner_frame, text=row['Skill'])
             skill_lbl.grid(row=row_num, column=4)
-            skill_lbl.bind("<Double-1>", lambda e, i=row_num: self.edit_skill(i))
+            skill_lbl.bind("<Double-1>", lambda e, fn=row['First Name'], ln=row['Last Name'], g=row['Gender']: self.edit_skill_by_identity(fn, ln, g))
 
             ttk.Label(self.inner_frame, text=row['Team'] if pd.notna(row['Team']) else "").grid(row=row_num, column=5)
 
@@ -154,6 +157,11 @@ class TeamBuilderGUI:
                 table.insert("", "end", values=(row['First Name'], row['Last Name'], row['Gender'], row['Skill']))
 
             table.pack(fill=tk.BOTH, expand=True)
+            # Show average skill
+            avg_skill = team_df['Skill'].mean()
+            avg_label = ttk.Label(frame, text=f"Average Skill: {avg_skill:.2f}", font=("Arial", 10, "italic"))
+            avg_label.pack(pady=(5, 0))
+
             self.team_tables.append(table)
 
     def sort_by_column(self, column):
@@ -164,11 +172,17 @@ class TeamBuilderGUI:
             self.sort_reverse = False
         self.refresh_tree()
 
-    def edit_skill(self, index):
-        new_value = tk.simpledialog.askinteger("Edit Skill", "Enter new skill:")
-        if new_value is not None:
-            self.manager.update_skill(index, new_value)
-            self.refresh_tree()
+    def edit_skill_by_identity(self, first_name, last_name, gender):
+        df = self.manager.get_all_players()
+        match = df[(df['First Name'] == first_name) & (df['Last Name'] == last_name) & (df['Gender'] == gender)]
+
+        if not match.empty:
+            idx = match.index[0]
+            new_value = tk.simpledialog.askinteger("Edit Skill", f"Enter new skill for {first_name} {last_name}:")
+            if new_value is not None:
+                self.manager.update_skill(idx, new_value)
+                self.refresh_tree()
+
 
     def add_player_window(self):
         win = tk.Toplevel(self.root)
@@ -241,6 +255,17 @@ class TeamBuilderGUI:
             self.refresh_tree()
         except Exception as e:
             messagebox.showerror("Error", str(e))
+
+    def toggle_all_checkin(self):
+        df = self.manager.get_all_players()
+        # Determine majority status and toggle to opposite
+        checked_count = df['Checked In'].sum()
+        new_status = False if checked_count > len(df) / 2 else True
+
+        for idx in df.index:
+            self.manager.set_checked_in(idx, new_status)
+
+        self.refresh_tree()
 
 if __name__ == "__main__":
     root = tk.Tk()

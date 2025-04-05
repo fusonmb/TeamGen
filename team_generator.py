@@ -1,37 +1,49 @@
-import random
-import pandas as pd
+def generate(manager, num_teams):
+    import random
+    df = manager.get_all_players()
+    checked_in = df[df['Checked In']]
 
-def generate(player_manager, num_teams):
-    df = player_manager.get_checked_in_players().copy()
+    if len(checked_in) < num_teams:
+        raise ValueError("Not enough checked-in players to form the requested number of teams.")
 
-    if len(df) < num_teams:
-        raise ValueError("Not enough players to create the requested number of teams.")
+    teams = {f"Team {i+1}": [] for i in range(num_teams)}
 
-    # Separate by gender for balancing
-    males = df[df['Gender'].str.lower() == 'male']
-    females = df[df['Gender'].str.lower() == 'female']
+    def snake_assign(players, start_low=True):
+        players = players.copy()
+        players['__rand'] = [random.random() for _ in range(len(players))]
+        players = players.sort_values(by=['Skill', '__rand'], ascending=[False, True])
+        players = players.drop(columns=['__rand'])
 
-    teams = [[] for _ in range(num_teams)]
-    team_skills = [0] * num_teams
+        direction = 1 if start_low else -1
+        idx = 0 if start_low else num_teams - 1
+        going_up = True if start_low else False
 
-    def distribute(players):
-        # Sort by skill descending for fair distribution
-        sorted_players = players.sort_values(by='Skill', ascending=False)
-        for i, (_, row) in enumerate(sorted_players.iterrows()):
-            team_index = i % num_teams
-            teams[team_index].append(row)
-            team_skills[team_index] += row['Skill']
+        for player_idx in players.index:
+            team_name = f"Team {idx + 1}"
+            teams[team_name].append(player_idx)
 
-    # Distribute genders separately to balance both skill and gender
-    distribute(males)
-    distribute(females)
+            # Move index
+            if going_up:
+                idx += 1
+                if idx >= num_teams:
+                    idx = num_teams - 1
+                    going_up = False
+            else:
+                idx -= 1
+                if idx < 0:
+                    idx = 0
+                    going_up = True
 
-    # Flatten teams and assign team names
-    for i, team in enumerate(teams):
-        for player in team:
-            idx = player_manager.players[(player_manager.players['First Name'] == player['First Name']) &
-                                         (player_manager.players['Last Name'] == player['Last Name']) &
-                                         (player_manager.players['Gender'] == player['Gender']) &
-                                         (player_manager.players['Skill'] == player['Skill'])].index
-            if not idx.empty:
-                player_manager.assign_team(idx[0], f"Team {i+1}")
+    # Separate by gender
+    males = checked_in[checked_in['Gender'].str.lower() == 'male']
+    females = checked_in[checked_in['Gender'].str.lower() == 'female']
+
+    # Females assigned to highest teams first → snake down
+    snake_assign(females, start_low=False)
+    # Males assigned to lowest teams first → snake up
+    snake_assign(males, start_low=True)
+
+    # Apply assignments
+    for team_name, indices in teams.items():
+        for idx in indices:
+            manager.assign_team(idx, team_name)
