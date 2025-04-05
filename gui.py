@@ -32,6 +32,18 @@ class TeamBuilderGUI:
         # Teams tab
         self.teams_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.teams_frame, text="Teams")
+
+        # Frame for the persistent "Generate Teams" button
+        self.teams_button_frame = ttk.Frame(self.teams_frame)
+        self.teams_button_frame.pack(fill=tk.X, pady=5)
+
+        gen_btn_teams = ttk.Button(self.teams_button_frame, text="Generate Teams", command=self.generate_teams)
+        gen_btn_teams.pack(padx=10, pady=5, anchor="center")
+
+        # Frame where team tables will be refreshed
+        self.teams_table_area = ttk.Frame(self.teams_frame)
+        self.teams_table_area.pack(fill=tk.BOTH, expand=True)
+
         self.team_tables = []
 
     def setup_main_tab(self, parent):
@@ -133,7 +145,7 @@ class TeamBuilderGUI:
         self.refresh_team_tables()
 
     def refresh_team_tables(self):
-        for widget in self.teams_frame.winfo_children():
+        for widget in self.teams_table_area.winfo_children():
             widget.destroy()
         self.team_tables.clear()
 
@@ -145,7 +157,7 @@ class TeamBuilderGUI:
         for team_name in team_names:
             team_df = assigned[assigned['Team'] == team_name]
 
-            frame = ttk.LabelFrame(self.teams_frame, text=team_name)
+            frame = ttk.LabelFrame(self.teams_table_area, text=team_name)
             frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
             table = ttk.Treeview(frame, columns=("First Name", "Last Name", "Gender", "Skill"), show="headings")
