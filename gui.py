@@ -16,6 +16,8 @@ class TeamBuilderGUI:
         self.sort_column = None
         self.sort_reverse = False
         self.gender_filter = tk.StringVar(value="All")
+        self.lock_teams = tk.BooleanVar(value=False)
+        self.team_results = {}
 
         self.setup_widgets()
 
@@ -36,6 +38,9 @@ class TeamBuilderGUI:
         # Frame for the persistent "Generate Teams" button
         self.teams_button_frame = ttk.Frame(self.teams_frame)
         self.teams_button_frame.pack(fill=tk.X, pady=5)
+
+        lock_check_teams = ttk.Checkbutton(self.teams_button_frame, text="Lock Teams", variable=self.lock_teams)
+        lock_check_teams.pack(side=tk.LEFT, padx=10)
 
         gen_btn_teams = ttk.Button(self.teams_button_frame, text="Generate Teams", command=self.generate_teams)
         gen_btn_teams.pack(padx=10, pady=5, anchor="center")
@@ -73,35 +78,59 @@ class TeamBuilderGUI:
         gen_btn = ttk.Button(frame, text="Generate Teams", command=self.generate_teams)
         gen_btn.grid(row=0, column=2, padx=5, pady=5)
 
-        team_options = [i for i in range(2, 11)]
-        ttk.Label(frame, text="Number of Teams:").grid(row=0, column=3, padx=(10, 2), pady=5, sticky="e")
-        team_menu = ttk.OptionMenu(frame, self.num_teams, self.num_teams.get(), *team_options, command=lambda _: self.update_checkin_counts())
-        team_menu.grid(row=0, column=4, padx=5, pady=5)
+        lock_check = ttk.Checkbutton(frame, text="Lock Teams", variable=self.lock_teams)
+        lock_check.grid(row=0, column=3, padx=5, pady=5)
 
-        ttk.Label(frame, text="Gender Filter:").grid(row=0, column=5, padx=(10, 2), pady=5, sticky="e")
+        team_options = [i for i in range(2, 11)]
+        ttk.Label(frame, text="Number of Teams:").grid(row=0, column=4, padx=(10, 2), pady=5, sticky="e")
+        team_menu = ttk.OptionMenu(frame, self.num_teams, self.num_teams.get(), *team_options, command=lambda _: self.update_checkin_counts())
+        team_menu.grid(row=0, column=5, padx=5, pady=5)
+
+        ttk.Label(frame, text="Gender Filter:").grid(row=0, column=6, padx=(10, 2), pady=5, sticky="e")
         gender_options = ttk.OptionMenu(frame, self.gender_filter, "All", "All", "Male", "Female", command=lambda _: self.refresh_tree())
-        gender_options.grid(row=0, column=6, padx=5, pady=5)
+        gender_options.grid(row=0, column=7, padx=5, pady=5)
         
         add_btn = ttk.Button(frame, text="Add Player", command=self.add_player_window)
-        add_btn.grid(row=0, column=7, padx=5, pady=5)
+        add_btn.grid(row=0, column=8, padx=5, pady=5)
 
-        toggle_btn = ttk.Button(frame, text="Toggle Check-In", command=self.toggle_all_checkin)
-        toggle_btn.grid(row=0, column=8, padx=5, pady=5)
+        # toggle_btn = ttk.Button(frame, text="Toggle Check-In", command=self.toggle_all_checkin)
+        # toggle_btn.grid(row=0, column=8, padx=5, pady=5)
 
-        self.tree_frame = ttk.Frame(parent)
-        self.tree_frame.grid(row=2, column=0, sticky="nsew")
+        # Container for both headers and scrollable body
+        self.table_container = ttk.Frame(parent)
+        self.table_container.grid(row=2, column=0, sticky="nsew")
+        parent.rowconfigure(2, weight=1)
+        parent.columnconfigure(0, weight=1)
 
-        self.tree_canvas = tk.Canvas(self.tree_frame)
+        # Canvas wraps both headers and table rows
+        self.tree_canvas = tk.Canvas(self.table_container)
         self.tree_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        self.scrollbar = ttk.Scrollbar(self.tree_frame, orient="vertical", command=self.tree_canvas.yview)
+        # Scrollbar
+        self.scrollbar = ttk.Scrollbar(self.table_container, orient="vertical", command=self.tree_canvas.yview)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        self.tree_canvas.configure(yscrollcommand=self.scrollbar.set)
-        self.tree_canvas.bind('<Configure>', lambda e: self.tree_canvas.configure(scrollregion=self.tree_canvas.bbox("all")))
+        # Scrollable frame within canvas
+        self.scrollable_frame = ttk.Frame(self.tree_canvas)
+        self.tree_canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
 
-        self.inner_frame = ttk.Frame(self.tree_canvas)
-        self.tree_canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
+        # Header (inside scrollable frame)
+        self.header_frame = ttk.Frame(self.scrollable_frame)
+        self.header_frame.pack(fill=tk.X)
+
+        # Inner table (inside scrollable frame)
+        self.inner_frame = ttk.Frame(self.scrollable_frame)
+        self.inner_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Configure scrolling
+        self.tree_canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.scrollable_frame.bind("<Configure>", lambda e: self.tree_canvas.configure(scrollregion=self.tree_canvas.bbox("all")))
+
+        # Scroll wheel support
+        self.tree_canvas.bind_all("<MouseWheel>", lambda e: self.tree_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
+        self.tree_canvas.bind_all("<Button-4>", lambda e: self.tree_canvas.yview_scroll(-1, "units"))
+        self.tree_canvas.bind_all("<Button-5>", lambda e: self.tree_canvas.yview_scroll(1, "units"))
+
 
         parent.rowconfigure(2, weight=1)
         parent.columnconfigure(0, weight=1)
@@ -120,15 +149,20 @@ class TeamBuilderGUI:
 
     def refresh_tree(self):
         for widget in self.inner_frame.winfo_children():
+            widget.destroy()        
+        for widget in self.header_frame.winfo_children():
             widget.destroy()
-        self.check_vars = {}
 
+        self.check_vars = {}
         header = ["Checked In", "First Name", "Last Name", "Gender", "Skill", "Points", "Team"]
+
         for col_index, col in enumerate(header):
-            lbl = ttk.Label(self.inner_frame, text=col, font=("Arial", 10, "bold"))
-            lbl.grid(row=0, column=col_index, padx=5, pady=2)
-            if col in ["First Name", "Last Name", "Skill", "Team", "Points", "Gender"]:
+            lbl = ttk.Label(self.header_frame, text=col, font=("Arial", 10, "bold"))
+            lbl.grid(row=0, column=col_index, padx=5, pady=2, sticky="nsew")
+            if col in ["First Name", "Last Name", "Skill", "Points", "Team", "Gender"]:
                 lbl.bind("<Button-1>", lambda e, c=col: self.sort_by_column(c))
+            self.header_frame.grid_columnconfigure(col_index, weight=1, uniform="col")
+            self.inner_frame.grid_columnconfigure(col_index, weight=1, uniform="col")
 
         df = self.manager.get_all_players()
         if self.gender_filter.get() != "All":
@@ -139,33 +173,33 @@ class TeamBuilderGUI:
                 by=['Checked In', self.sort_column],
                 key=lambda col: col.str.lower() if col.dtype == 'object' else col,
                 ascending=[False, not self.sort_reverse]
-                ).reset_index(drop=True)
+            ).reset_index(drop=True)
 
         for row_num, (_, row) in enumerate(df.iterrows(), start=1):
             check_var = tk.BooleanVar(value=bool(row['Checked In']))
             command = lambda name=row['First Name'], last=row['Last Name'], gender=row['Gender'], var=check_var: (
                 self.set_checked_in_by_identity(name, last, gender, var.get()),
-                self.update_checkin_counts()
-            ) 
+                self.update_checkin_counts())
+            
             check = ttk.Checkbutton(self.inner_frame, variable=check_var, command=command)
-            check.grid(row=row_num, column=0, padx=5, pady=2)
-            # No need to track check_vars by index anymore
+            check.grid(row=row_num, column=0, padx=5, pady=2, sticky="nsew")
 
-            ttk.Label(self.inner_frame, text=row['First Name']).grid(row=row_num, column=1)
-            ttk.Label(self.inner_frame, text=row['Last Name']).grid(row=row_num, column=2)
-            ttk.Label(self.inner_frame, text=row['Gender']).grid(row=row_num, column=3)
+            ttk.Label(self.inner_frame, text=row['First Name']).grid(row=row_num, column=1, sticky="nsew")
+            ttk.Label(self.inner_frame, text=row['Last Name']).grid(row=row_num, column=2, sticky="nsew")
+            ttk.Label(self.inner_frame, text=row['Gender']).grid(row=row_num, column=3, sticky="nsew")
 
             skill_lbl = ttk.Label(self.inner_frame, text=row['Skill'])
-            skill_lbl.grid(row=row_num, column=4)
-            skill_lbl.bind("<Double-1>", lambda e, fn=row['First Name'], ln=row['Last Name'], g=row['Gender']: self.edit_skill_by_identity(fn, ln, g))
+            skill_lbl.grid(row=row_num, column=4, sticky="nsew")
+            skill_lbl.bind(
+                "<Double-1>",
+                lambda e, fn=row['First Name'], ln=row['Last Name'], g=row['Gender']: self.edit_skill_by_identity(fn, ln, g))
 
-            ttk.Label(self.inner_frame, text=row.get('Points', "")).grid(row=row_num, column=5)
-
-            ttk.Label(self.inner_frame, text=row['Team'] if pd.notna(row['Team']) else "").grid(row=row_num, column=6)
-
+            ttk.Label(self.inner_frame, text=row.get('Points', "")).grid(row=row_num, column=5, sticky="nsew")
+            ttk.Label(self.inner_frame, text=row['Team'] if pd.notna(row['Team']) else "").grid(row=row_num, column=6, sticky="nsew")
         self.num_teams.trace_add("write", lambda *args: self.update_checkin_counts())
 
         self.refresh_team_tables()
+        self.tree_canvas.configure(scrollregion=self.tree_canvas.bbox("all"))
 
     def refresh_team_tables(self):
         for widget in self.teams_table_area.winfo_children():
@@ -178,10 +212,21 @@ class TeamBuilderGUI:
         team_names = sorted(assigned['Team'].dropna().unique())
 
         for team_name in team_names:
+            result_var = tk.StringVar(value="Result:")
             team_df = assigned[assigned['Team'] == team_name]
 
-            frame = ttk.LabelFrame(self.teams_table_area, text=team_name)
-            frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+            outer_frame = ttk.LabelFrame(self.teams_table_area, text=team_name)
+            outer_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+            top_row = ttk.Frame(outer_frame)
+            top_row.pack(fill=tk.X, padx=5, pady=(0, 5))
+
+            ttk.Label(top_row, text="Result:").pack(side=tk.LEFT, padx=(0, 5))
+            result_dropdown = ttk.OptionMenu(top_row, result_var, "Undecided", "Win", "Loss")
+            result_dropdown.pack(side=tk.LEFT)
+
+            frame = ttk.Frame(outer_frame)
+            frame.pack(fill=tk.BOTH, expand=True)
 
             table = ttk.Treeview(frame, columns=("First Name", "Last Name", "Gender", "Skill"), show="headings")
             for col in table["columns"]:
@@ -294,7 +339,11 @@ class TeamBuilderGUI:
                 self.manager.assign_team(idx, None)
 
         try:
-            team_generator.generate(self.manager, self.num_teams.get())
+            team_generator.generate(
+                manager=self.manager,
+                num_teams=self.num_teams.get(),
+                lock_teams=self.lock_teams.get())
+            
             self.refresh_tree()
         except Exception as e:
             messagebox.showerror("Error", str(e))
@@ -328,6 +377,18 @@ class TeamBuilderGUI:
 
         # Count checked-in players per team
         self.team_count_label.config(text=f"Checked-in per Team: {total/numTeams}")
+
+    def update_all_points(self):
+        df = self.manager.get_all_players()
+
+        for idx, row in df.iterrows():
+            points = 0
+            if row["Checked In"]:
+                points += 1
+            team = row.get("Team")
+            if team and self.team_results.get(team) == "Win":
+                points += 1
+            self.manager.update_points(idx, points)
 
 if __name__ == "__main__":
     root = tk.Tk()

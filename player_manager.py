@@ -42,7 +42,7 @@ class PlayerManager:
 
     def save_to_csv(self, file_path):
         export_df = self.players.copy()
-
+        
         # Rename headers to lowercase format
         export_df = export_df.rename(columns={
             "First Name": "first_name",
@@ -79,6 +79,10 @@ class PlayerManager:
 
     def assign_team(self, index, team_name):
         self.players.at[index, 'Team'] = team_name
+
+    def update_points(self, index, value):
+        if 0 <= index < len(self.players):
+            self.players.at[index, 'Points'] = value
 
     def get_all_players(self):
         return self.players
