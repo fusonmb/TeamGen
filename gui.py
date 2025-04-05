@@ -123,11 +123,11 @@ class TeamBuilderGUI:
             widget.destroy()
         self.check_vars = {}
 
-        header = ["Checked In", "First Name", "Last Name", "Gender", "Skill", "Team"]
+        header = ["Checked In", "First Name", "Last Name", "Gender", "Skill", "Points", "Team"]
         for col_index, col in enumerate(header):
             lbl = ttk.Label(self.inner_frame, text=col, font=("Arial", 10, "bold"))
             lbl.grid(row=0, column=col_index, padx=5, pady=2)
-            if col in ["First Name", "Last Name", "Skill", "Team", "Gender"]:
+            if col in ["First Name", "Last Name", "Skill", "Team", "Points", "Gender"]:
                 lbl.bind("<Button-1>", lambda e, c=col: self.sort_by_column(c))
 
         df = self.manager.get_all_players()
@@ -159,7 +159,9 @@ class TeamBuilderGUI:
             skill_lbl.grid(row=row_num, column=4)
             skill_lbl.bind("<Double-1>", lambda e, fn=row['First Name'], ln=row['Last Name'], g=row['Gender']: self.edit_skill_by_identity(fn, ln, g))
 
-            ttk.Label(self.inner_frame, text=row['Team'] if pd.notna(row['Team']) else "").grid(row=row_num, column=5)
+            ttk.Label(self.inner_frame, text=row.get('Points', "")).grid(row=row_num, column=5)
+
+            ttk.Label(self.inner_frame, text=row['Team'] if pd.notna(row['Team']) else "").grid(row=row_num, column=6)
 
         self.num_teams.trace_add("write", lambda *args: self.update_checkin_counts())
 

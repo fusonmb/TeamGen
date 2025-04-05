@@ -16,21 +16,21 @@ class PlayerManager:
         columns = {
             "first_name": "First Name",
             "last_name": "Last Name",
-            "gender": "Gender"
+            "gender": "Gender",
         }
         new_df = df.rename(columns=columns)[list(columns.values())]
 
         # Add skill column (default to 5 if missing)
-        if 'Skill' in df.columns:
-            new_df['Skill'] = df['Skill']
+        if 'skill' in df.columns:
+            new_df['Skill'] = df['skill']
         else:
             new_df['Skill'] = 5
 
         # Add Point column (default to 0 if missing)
-        if 'Point' in df.columns:
-            new_df['Point'] = df['Point']
+        if 'points' in df.columns:
+            new_df['Points'] = df['points']
         else:
-            new_df['Point'] = 0    
+            new_df['Points'] = 0    
 
         # Add extra columns required by app
         new_df['Checked In'] = False
@@ -61,6 +61,7 @@ class PlayerManager:
             'Last Name': last_name,
             'Gender': gender,
             'Skill': skill,
+            'Points': 0,
             'Checked In': True,
             'Team': None,
             'New': True,
