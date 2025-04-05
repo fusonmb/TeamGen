@@ -220,13 +220,21 @@ class TeamBuilderGUI:
     def add_player_window(self):
         win = tk.Toplevel(self.root)
         win.title("Add Player")
-
+        fields = ["First Name", "Last Name", "Gender", "Skill"]
         entries = {}
-        for i, field in enumerate(["First Name", "Last Name", "Gender", "Skill"]):
+        
+        for i, field in enumerate(fields):
             ttk.Label(win, text=field).grid(row=i, column=0, padx=5, pady=5)
-            entry = ttk.Entry(win)
-            entry.grid(row=i, column=1, padx=5, pady=5)
-            entries[field] = entry
+
+            if field == "Gender":
+                gender_var = tk.StringVar(value="Male")
+                dropdown = ttk.OptionMenu(win, gender_var, "Male", "Male", "Female")
+                dropdown.grid(row=i, column=1, padx=5, pady=5)
+                entries[field] = gender_var
+            else:
+                entry = ttk.Entry(win)
+                entry.grid(row=i, column=1, padx=5, pady=5)
+                entries[field] = entry
 
         def submit():
             try:
