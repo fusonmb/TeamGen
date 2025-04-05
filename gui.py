@@ -11,7 +11,7 @@ class TeamBuilderGUI:
         self.root.title("Team Generator")
 
         self.manager = PlayerManager()
-        self.num_teams = tk.IntVar(value=4)
+        self.num_teams = tk.IntVar(value=2)
         self.check_vars = {}
         self.sort_column = None
         self.sort_reverse = False
@@ -48,7 +48,21 @@ class TeamBuilderGUI:
 
     def setup_main_tab(self, parent):
         frame = ttk.Frame(parent, padding=10)
-        frame.grid(row=0, column=0, sticky="nsew")
+        # Frame for live counters
+        self.counter_frame = ttk.Frame(parent, padding=(10, 5), height=30)
+        self.counter_frame.grid(row=1, column=0, sticky="w")
+        self.counter_frame.grid_propagate(False)  # Prevent frame from resizing to fit content
+
+        self.checkin_label = ttk.Label(self.counter_frame, text="Checked-in Players: 0")
+        self.checkin_label.pack(side=tk.LEFT, padx=(0, 20))
+
+        self.gender_label = ttk.Label(self.counter_frame, text="Males: 0 | Females: 0")
+        self.gender_label.pack(side=tk.LEFT, padx=(0, 20))
+
+        self.team_count_label = ttk.Label(self.counter_frame, text="Checked-in per Team: None")
+        self.team_count_label.pack(side=tk.LEFT)
+
+        frame.grid(row=0, column=0, sticky="ew")
 
         load_btn = ttk.Button(frame, text="Load CSV", command=self.load_csv)
         load_btn.grid(row=0, column=0, padx=5, pady=5)
@@ -59,21 +73,23 @@ class TeamBuilderGUI:
         gen_btn = ttk.Button(frame, text="Generate Teams", command=self.generate_teams)
         gen_btn.grid(row=0, column=2, padx=5, pady=5)
 
-        ttk.Label(frame, text="Number of Teams:").grid(row=0, column=3, padx=5, pady=5)
-        team_spin = ttk.Spinbox(frame, from_=2, to=20, textvariable=self.num_teams, width=5)
-        team_spin.grid(row=0, column=4, padx=5, pady=5)
+        team_options = [i for i in range(2, 11)]
+        ttk.Label(frame, text="Number of Teams:").grid(row=0, column=3, padx=(10, 2), pady=5, sticky="e")
+        team_menu = ttk.OptionMenu(frame, self.num_teams, self.num_teams.get(), *team_options, command=lambda _: self.update_checkin_counts())
+        team_menu.grid(row=0, column=4, padx=5, pady=5)
 
-        add_btn = ttk.Button(frame, text="Add Player", command=self.add_player_window)
-        add_btn.grid(row=0, column=5, padx=5, pady=5)
-
+        ttk.Label(frame, text="Gender Filter:").grid(row=0, column=5, padx=(10, 2), pady=5, sticky="e")
         gender_options = ttk.OptionMenu(frame, self.gender_filter, "All", "All", "Male", "Female", command=lambda _: self.refresh_tree())
         gender_options.grid(row=0, column=6, padx=5, pady=5)
+        
+        add_btn = ttk.Button(frame, text="Add Player", command=self.add_player_window)
+        add_btn.grid(row=0, column=7, padx=5, pady=5)
 
         toggle_btn = ttk.Button(frame, text="Toggle Check-In", command=self.toggle_all_checkin)
-        toggle_btn.grid(row=0, column=7, padx=5, pady=5)
+        toggle_btn.grid(row=0, column=8, padx=5, pady=5)
 
         self.tree_frame = ttk.Frame(parent)
-        self.tree_frame.grid(row=1, column=0, sticky="nsew")
+        self.tree_frame.grid(row=2, column=0, sticky="nsew")
 
         self.tree_canvas = tk.Canvas(self.tree_frame)
         self.tree_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -87,7 +103,7 @@ class TeamBuilderGUI:
         self.inner_frame = ttk.Frame(self.tree_canvas)
         self.tree_canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
 
-        parent.rowconfigure(1, weight=1)
+        parent.rowconfigure(2, weight=1)
         parent.columnconfigure(0, weight=1)
 
     def load_csv(self):
@@ -120,14 +136,17 @@ class TeamBuilderGUI:
 
         if self.sort_column:
             df = df.sort_values(
-    by=['Checked In', self.sort_column],
-    key=lambda col: col.str.lower() if col.dtype == 'object' else col,
-    ascending=[False, not self.sort_reverse]
-).reset_index(drop=True)
+                by=['Checked In', self.sort_column],
+                key=lambda col: col.str.lower() if col.dtype == 'object' else col,
+                ascending=[False, not self.sort_reverse]
+                ).reset_index(drop=True)
 
         for row_num, (_, row) in enumerate(df.iterrows(), start=1):
             check_var = tk.BooleanVar(value=bool(row['Checked In']))
-            command = lambda name=row['First Name'], last=row['Last Name'], gender=row['Gender'], var=check_var: self.set_checked_in_by_identity(name, last, gender, var.get())
+            command = lambda name=row['First Name'], last=row['Last Name'], gender=row['Gender'], var=check_var: (
+                self.set_checked_in_by_identity(name, last, gender, var.get()),
+                self.update_checkin_counts()
+            ) 
             check = ttk.Checkbutton(self.inner_frame, variable=check_var, command=command)
             check.grid(row=row_num, column=0, padx=5, pady=2)
             # No need to track check_vars by index anymore
@@ -141,6 +160,8 @@ class TeamBuilderGUI:
             skill_lbl.bind("<Double-1>", lambda e, fn=row['First Name'], ln=row['Last Name'], g=row['Gender']: self.edit_skill_by_identity(fn, ln, g))
 
             ttk.Label(self.inner_frame, text=row['Team'] if pd.notna(row['Team']) else "").grid(row=row_num, column=5)
+
+        self.num_teams.trace_add("write", lambda *args: self.update_checkin_counts())
 
         self.refresh_team_tables()
 
@@ -268,6 +289,8 @@ class TeamBuilderGUI:
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+        self.num_teams.trace_add("write", lambda *args: self.update_checkin_counts())
+
     def toggle_all_checkin(self):
         df = self.manager.get_all_players()
         # Determine majority status and toggle to opposite
@@ -277,7 +300,24 @@ class TeamBuilderGUI:
         for idx in df.index:
             self.manager.set_checked_in(idx, new_status)
 
+        self.num_teams.trace_add("write", lambda *args: self.update_checkin_counts())
+
         self.refresh_tree()
+
+    def update_checkin_counts(self):
+        df = self.manager.get_all_players()
+        checked = df[df['Checked In']]
+
+        total = len(checked)
+        males = len(checked[checked['Gender'].str.lower() == 'male'])
+        females = len(checked[checked['Gender'].str.lower() == 'female'])
+        numTeams = float(self.num_teams.get())
+
+        self.checkin_label.config(text=f"Checked-in Players: {total}")
+        self.gender_label.config(text=f"Males: {males} | Females: {females}")
+
+        # Count checked-in players per team
+        self.team_count_label.config(text=f"Checked-in per Team: {total/numTeams}")
 
 if __name__ == "__main__":
     root = tk.Tk()
