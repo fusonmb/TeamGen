@@ -1,6 +1,7 @@
+import random
+import numpy as np
+
 def generate(manager, num_teams, lock_teams=False):
-    import random
-    import numpy as np
     df = manager.get_all_players()
     checked_in = df[df['Checked In']]
 

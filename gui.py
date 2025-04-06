@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-import os
+import datetime
 import pandas as pd
 from player_manager import PlayerManager
 import team_generator
@@ -18,6 +18,8 @@ class TeamBuilderGUI:
         self.gender_filter = tk.StringVar(value="All")
         self.lock_teams = tk.BooleanVar(value=False)
         self.team_results = {}
+        self.display_order = []
+        self.last_sorted_order = []
 
         self.setup_widgets()
 
@@ -142,12 +144,20 @@ class TeamBuilderGUI:
             self.refresh_tree()
 
     def save_csv(self):
-        file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV Files", "*.csv")])
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
+        default_name = f"TeamGen_{timestamp}.csv"
+
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            initialfile=default_name,
+            filetypes=[("CSV Files", "*.csv")]
+        )
+
         if file_path:
             self.manager.save_to_csv(file_path)
             messagebox.showinfo("Saved", f"Saved to {file_path}")
 
-    def refresh_tree(self):
+    def refresh_tree(self, preserve_order=False):
         for widget in self.inner_frame.winfo_children():
             widget.destroy()        
         for widget in self.header_frame.winfo_children():
@@ -157,9 +167,17 @@ class TeamBuilderGUI:
         header = ["Checked In", "First Name", "Last Name", "Gender", "Skill", "Points", "Team"]
 
         for col_index, col in enumerate(header):
-            lbl = ttk.Label(self.header_frame, text=col, font=("Arial", 10, "bold"))
+            sort_indicator = ""
+            if self.sort_column == col:
+                sort_indicator = " ▲" if not self.sort_reverse else " ▼"
+
+            lbl = ttk.Label(
+                self.header_frame,
+                text=col + sort_indicator,
+                font=("Arial", 10, "bold"))
+            
             lbl.grid(row=0, column=col_index, padx=5, pady=2, sticky="nsew")
-            if col in ["First Name", "Last Name", "Skill", "Points", "Team", "Gender"]:
+            if col in ["Checked In","First Name", "Last Name", "Skill", "Points", "Team", "Gender"]:
                 lbl.bind("<Button-1>", lambda e, c=col: self.sort_by_column(c))
             self.header_frame.grid_columnconfigure(col_index, weight=1, uniform="col")
             self.inner_frame.grid_columnconfigure(col_index, weight=1, uniform="col")
@@ -169,11 +187,21 @@ class TeamBuilderGUI:
             df = df[df['Gender'].str.lower() == self.gender_filter.get().lower()]
 
         if self.sort_column:
+            # Create a map from full row tuple to its screen position
+            order_map = {row: i for i, row in enumerate(self.last_sorted_order)}
+
+            # Create row identity for each row in the new DataFrame
+            df = df.assign(__display_order=df.apply(
+                lambda row: order_map.get(tuple(row), len(order_map)),
+                axis=1
+            ))
+
+            # Sort by selected column, then by previous screen order
             df = df.sort_values(
-                by=['Checked In', self.sort_column],
+                by=[self.sort_column, '__display_order'],
                 key=lambda col: col.str.lower() if col.dtype == 'object' else col,
-                ascending=[False, not self.sort_reverse]
-            ).reset_index(drop=True)
+                ascending=[not self.sort_reverse, True]
+            ).drop(columns='__display_order').reset_index(drop=True)
 
         for row_num, (_, row) in enumerate(df.iterrows(), start=1):
             check_var = tk.BooleanVar(value=bool(row['Checked In']))
@@ -200,6 +228,7 @@ class TeamBuilderGUI:
 
         self.refresh_team_tables()
         self.tree_canvas.configure(scrollregion=self.tree_canvas.bbox("all"))
+        self.last_sorted_order = list(df.itertuples(index=False, name=None))
 
     def refresh_team_tables(self):
         for widget in self.teams_table_area.winfo_children():
@@ -212,7 +241,7 @@ class TeamBuilderGUI:
         team_names = sorted(assigned['Team'].dropna().unique())
 
         for team_name in team_names:
-            result_var = tk.StringVar(value="Result:")
+            result_var = tk.StringVar(value=self.team_results.get(team_name, "Undecided"))
             team_df = assigned[assigned['Team'] == team_name]
 
             outer_frame = ttk.LabelFrame(self.teams_table_area, text=team_name)
@@ -222,7 +251,14 @@ class TeamBuilderGUI:
             top_row.pack(fill=tk.X, padx=5, pady=(0, 5))
 
             ttk.Label(top_row, text="Result:").pack(side=tk.LEFT, padx=(0, 5))
-            result_dropdown = ttk.OptionMenu(top_row, result_var, "Undecided", "Win", "Loss")
+
+            result_dropdown = ttk.OptionMenu(
+                top_row,
+                result_var,
+                result_var.get(),
+                "Undecided", "Win", "Loss",
+                command=lambda _, t=team_name, v=result_var: self.on_result_change(t, v))
+            
             result_dropdown.pack(side=tk.LEFT)
 
             frame = ttk.Frame(outer_frame)
@@ -274,8 +310,8 @@ class TeamBuilderGUI:
             ttk.Label(win, text=field).grid(row=i, column=0, padx=5, pady=5)
 
             if field == "Gender":
-                gender_var = tk.StringVar(value="Male")
-                dropdown = ttk.OptionMenu(win, gender_var, "Male", "Male", "Female")
+                gender_var = tk.StringVar(value="male")
+                dropdown = ttk.OptionMenu(win, gender_var, "male", "male", "female")
                 dropdown.grid(row=i, column=1, padx=5, pady=5)
                 entries[field] = gender_var
             else:
@@ -326,8 +362,20 @@ class TeamBuilderGUI:
     def set_checked_in_by_identity(self, first_name, last_name, gender, checked_in):
         df = self.manager.get_all_players()
         match = df[(df['First Name'] == first_name) & (df['Last Name'] == last_name) & (df['Gender'] == gender)]
+
         if not match.empty:
-            self.manager.set_checked_in(match.index[0], checked_in)
+            idx = match.index[0]
+            current_status = df.at[idx, 'Checked In']
+            if current_status != checked_in:
+                self.manager.set_checked_in(idx, checked_in)
+                # Update points
+                if checked_in:
+                    self.manager.increment_points(idx, 1)
+                else:
+                    self.manager.increment_points(idx, -1)
+
+                self.refresh_tree()
+                self.update_checkin_counts()
 
     def generate_teams(self):
         # Sync checkbox states back to manager
@@ -378,17 +426,23 @@ class TeamBuilderGUI:
         # Count checked-in players per team
         self.team_count_label.config(text=f"Checked-in per Team: {total/numTeams}")
 
-    def update_all_points(self):
+    def update_team_result_points(self, team_name, old_result, new_result):
         df = self.manager.get_all_players()
-
         for idx, row in df.iterrows():
-            points = 0
-            if row["Checked In"]:
-                points += 1
-            team = row.get("Team")
-            if team and self.team_results.get(team) == "Win":
-                points += 1
-            self.manager.update_points(idx, points)
+            if row['Team'] == team_name:
+                if old_result == "Win" and new_result != "Win":
+                    self.manager.increment_points(idx, -1)
+                elif old_result != "Win" and new_result == "Win":
+                    self.manager.increment_points(idx, 1)
+
+    def on_result_change(self, team_name, result_var):
+        old_result = self.team_results.get(team_name, "Undecided")
+        new_result = result_var.get()
+        if old_result != new_result:
+            self.team_results[team_name] = new_result
+            self.update_team_result_points(team_name, old_result, new_result)
+            self.refresh_tree()
+            self.update_checkin_counts()  # optional, to keep counters in sync
 
 if __name__ == "__main__":
     root = tk.Tk()

@@ -5,6 +5,7 @@ class PlayerManager:
         self.players = pd.DataFrame(columns=[
             'First Name', 'Last Name', 'Gender', 'Skill', 'Points' 'Checked In', 'Team', 'New', 'Modified'
         ])
+        
 
     def load_from_csv(self, file_path):
         df = pd.read_csv(file_path)
@@ -37,12 +38,16 @@ class PlayerManager:
         new_df['Team'] = None
         new_df['New'] = False
         new_df['Modified'] = False
+        new_df['Order'] = range(len(new_df))
 
         self.players = new_df
 
     def save_to_csv(self, file_path):
         export_df = self.players.copy()
-        
+
+        # Drop internal-use columns before saving
+        export_df = export_df.drop(columns=["Order"], errors="ignore")
+
         # Rename headers to lowercase format
         export_df = export_df.rename(columns={
             "First Name": "first_name",
@@ -61,11 +66,12 @@ class PlayerManager:
             'Last Name': last_name,
             'Gender': gender,
             'Skill': skill,
-            'Points': 0,
+            'Points': 1,
             'Checked In': True,
             'Team': None,
             'New': True,
-            'Modified': False
+            'Modified': False,
+            "Order": len(self.players)  # new player added at the end
         }
         self.players = pd.concat([self.players, pd.DataFrame([new_player])], ignore_index=True)
 
@@ -83,6 +89,12 @@ class PlayerManager:
     def update_points(self, index, value):
         if 0 <= index < len(self.players):
             self.players.at[index, 'Points'] = value
+
+    def increment_points(self, index, amount=1):
+        if 0 <= index < len(self.players):
+            current = self.players.at[index, 'Points']
+            self.players.at[index, 'Points'] = current + amount
+
 
     def get_all_players(self):
         return self.players
