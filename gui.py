@@ -60,13 +60,14 @@ class TeamBuilderGUI:
         self.counter_frame.grid(row=1, column=0, sticky="w")
         self.counter_frame.grid_propagate(False)  # Prevent frame from resizing to fit content
 
-        self.checkin_label = ttk.Label(self.counter_frame, text="Checked-in Players: 0")
+        count_font_style = ("Arial", 12, "bold")  # You can adjust size/style here
+        self.checkin_label = ttk.Label(self.counter_frame, text="Players: 0", font=count_font_style)
         self.checkin_label.pack(side=tk.LEFT, padx=(0, 20))
 
-        self.gender_label = ttk.Label(self.counter_frame, text="Males: 0 | Females: 0")
+        self.gender_label = ttk.Label(self.counter_frame, text="Males: 0 | Females: 0", font=count_font_style)
         self.gender_label.pack(side=tk.LEFT, padx=(0, 20))
 
-        self.team_count_label = ttk.Label(self.counter_frame, text="Checked-in per Team: None")
+        self.team_count_label = ttk.Label(self.counter_frame, text="Players Per Team: 0 | M: 0 | F: 0", font=count_font_style)
         self.team_count_label.pack(side=tk.LEFT)
 
         frame.grid(row=0, column=0, sticky="ew")
@@ -231,54 +232,69 @@ class TeamBuilderGUI:
         self.last_sorted_order = list(df.itertuples(index=False, name=None))
 
     def refresh_team_tables(self):
-        for widget in self.teams_table_area.winfo_children():
+        for widget in self.teams_frame.winfo_children():
             widget.destroy()
         self.team_tables.clear()
+
+        # Create scrollable canvas for teams
+        canvas = tk.Canvas(self.teams_frame)
+        scrollbar = ttk.Scrollbar(self.teams_frame, orient="vertical", command=canvas.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Container frame inside canvas
+        scrollable_frame = ttk.Frame(canvas)
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+
+        # Update scrollregion when widgets resize
+        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
         df = self.manager.get_all_players()
         assigned = df[df['Team'].notna()]
 
         team_names = sorted(assigned['Team'].dropna().unique())
 
+        max_columns = 3  # Adjust this number as desired
+        row, col = 0, 0
+
         for team_name in team_names:
-            result_var = tk.StringVar(value=self.team_results.get(team_name, "Undecided"))
             team_df = assigned[assigned['Team'] == team_name]
 
-            outer_frame = ttk.LabelFrame(self.teams_table_area, text=team_name)
-            outer_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+            frame = ttk.LabelFrame(scrollable_frame, text=team_name)
+            frame.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
 
-            top_row = ttk.Frame(outer_frame)
+            # Result dropdown
+            top_row = ttk.Frame(frame)
             top_row.pack(fill=tk.X, padx=5, pady=(0, 5))
 
             ttk.Label(top_row, text="Result:").pack(side=tk.LEFT, padx=(0, 5))
 
+            result_var = tk.StringVar(value=self.team_results.get(team_name, "Undecided"))
             result_dropdown = ttk.OptionMenu(
                 top_row,
                 result_var,
                 result_var.get(),
                 "Undecided", "Win", "Loss",
-                command=lambda _, t=team_name, v=result_var: self.on_result_change(t, v))
-            
+                command=lambda _, t=team_name, v=result_var: self.on_result_change(t, v)            )
             result_dropdown.pack(side=tk.LEFT)
 
-            frame = ttk.Frame(outer_frame)
-            frame.pack(fill=tk.BOTH, expand=True)
-
             table = ttk.Treeview(frame, columns=("First Name", "Last Name", "Gender", "Skill"), show="headings")
-            for col in table["columns"]:
-                table.heading(col, text=col, command=lambda c=col, t=table, df=team_df: self.sort_team_table(t, df, c))
-                table.column(col, width=100)
+            for col_name in table["columns"]:
+                table.heading(col_name, text=col_name, command=lambda c=col_name, t=table, df=team_df: self.sort_team_table(t, df, c))
+                table.column(col_name, width=100)
 
-            for _, row in team_df.iterrows():
-                table.insert("", "end", values=(row['First Name'], row['Last Name'], row['Gender'], row['Skill']))
+            for _, row_data in team_df.iterrows():
+                table.insert("", "end", values=(row_data['First Name'], row_data['Last Name'], row_data['Gender'], row_data['Skill']))
 
             table.pack(fill=tk.BOTH, expand=True)
-            # Show average skill
-            avg_skill = team_df['Skill'].mean()
-            avg_label = ttk.Label(frame, text=f"Average Skill: {avg_skill:.2f}", font=("Arial", 10, "italic"))
-            avg_label.pack(pady=(5, 0))
-
             self.team_tables.append(table)
+
+            col += 1
+            if col >= max_columns:
+                col = 0
+                row += 1
 
     def sort_by_column(self, column):
         if self.sort_column == column:
@@ -420,11 +436,11 @@ class TeamBuilderGUI:
         females = len(checked[checked['Gender'].str.lower() == 'female'])
         numTeams = float(self.num_teams.get())
 
-        self.checkin_label.config(text=f"Checked-in Players: {total}")
+        self.checkin_label.config(text=f"Players: {total}")
         self.gender_label.config(text=f"Males: {males} | Females: {females}")
 
         # Count checked-in players per team
-        self.team_count_label.config(text=f"Checked-in per Team: {total/numTeams}")
+        self.team_count_label.config(text=f"Players Per Team:  {total/numTeams:.2f} |   M: {males/numTeams:.2f} |   F: {females/numTeams:.2f}")
 
     def update_team_result_points(self, team_name, old_result, new_result):
         df = self.manager.get_all_players()
