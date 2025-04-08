@@ -39,7 +39,7 @@ class PlayerManager:
             new_df['Drop In'] = 'Registered'
 
         # Add extra columns required by app
-        new_df['Checked In'] = True
+        new_df['Checked In'] = False
         new_df['Team'] = None
         new_df['New'] = False
         new_df['Modified'] = False
