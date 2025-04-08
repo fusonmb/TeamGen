@@ -24,6 +24,10 @@ class TeamBuilderGUI:
         self.setup_widgets()
 
     def setup_widgets(self):
+
+        style = ttk.Style()
+        style.configure("TNotebook.Tab", padding=[20, 10], font=("Arial", 10, "bold"))
+
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill=tk.BOTH, expand=True)
 
@@ -36,16 +40,6 @@ class TeamBuilderGUI:
         # Teams tab
         self.teams_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.teams_frame, text="Teams")
-
-        # Frame for the persistent "Generate Teams" button
-        self.teams_button_frame = ttk.Frame(self.teams_frame)
-        self.teams_button_frame.pack(fill=tk.X, pady=5)
-
-        lock_check_teams = ttk.Checkbutton(self.teams_button_frame, text="Lock Teams", variable=self.lock_teams)
-        lock_check_teams.pack(side=tk.LEFT, padx=10)
-
-        gen_btn_teams = ttk.Button(self.teams_button_frame, text="Generate Teams", command=self.generate_teams)
-        gen_btn_teams.pack(padx=10, pady=5, anchor="center")
 
         # Frame where team tables will be refreshed
         self.teams_table_area = ttk.Frame(self.teams_frame)
@@ -60,7 +54,7 @@ class TeamBuilderGUI:
         self.counter_frame.grid(row=1, column=0, sticky="w")
         self.counter_frame.grid_propagate(False)  # Prevent frame from resizing to fit content
 
-        count_font_style = ("Arial", 12, "bold")  # You can adjust size/style here
+        count_font_style = ("Arial", 11, "bold")  # You can adjust size/style here
         self.checkin_label = ttk.Label(self.counter_frame, text="Players: 0", font=count_font_style)
         self.checkin_label.pack(side=tk.LEFT, padx=(0, 20))
 
@@ -165,7 +159,7 @@ class TeamBuilderGUI:
             widget.destroy()
 
         self.check_vars = {}
-        header = ["Checked In", "First Name", "Last Name", "Gender", "Skill", "Points", "Team"]
+        header = ["Checked In", "First Name", "Last Name", "Gender", "Skill", "Points", "Team", "Drop In"]
 
         for col_index, col in enumerate(header):
             sort_indicator = ""
@@ -178,7 +172,7 @@ class TeamBuilderGUI:
                 font=("Arial", 10, "bold"))
             
             lbl.grid(row=0, column=col_index, padx=5, pady=2, sticky="nsew")
-            if col in ["Checked In","First Name", "Last Name", "Skill", "Points", "Team", "Gender"]:
+            if col in ["Checked In","First Name", "Last Name", "Skill", "Points", "Team", "Gender", "Drop In"]:
                 lbl.bind("<Button-1>", lambda e, c=col: self.sort_by_column(c))
             self.header_frame.grid_columnconfigure(col_index, weight=1, uniform="col")
             self.inner_frame.grid_columnconfigure(col_index, weight=1, uniform="col")
@@ -225,6 +219,8 @@ class TeamBuilderGUI:
 
             ttk.Label(self.inner_frame, text=row.get('Points', "")).grid(row=row_num, column=5, sticky="nsew")
             ttk.Label(self.inner_frame, text=row['Team'] if pd.notna(row['Team']) else "").grid(row=row_num, column=6, sticky="nsew")
+            
+            ttk.Label(self.inner_frame, text=row['Drop In']).grid(row=row_num, column=7, sticky="nsew")
         self.num_teams.trace_add("write", lambda *args: self.update_checkin_counts())
 
         self.refresh_team_tables()
@@ -235,6 +231,15 @@ class TeamBuilderGUI:
         for widget in self.teams_frame.winfo_children():
             widget.destroy()
         self.team_tables.clear()
+          
+        self.teams_button_frame = ttk.Frame(self.teams_frame)
+        self.teams_button_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
+
+        gen_btn = ttk.Button(self.teams_button_frame, text="Generate Teams", command=self.generate_teams)
+        gen_btn.pack(side=tk.LEFT, padx=10)
+
+        lock_check_teams = ttk.Checkbutton(self.teams_button_frame, text="Lock Teams", variable=self.lock_teams)
+        lock_check_teams.pack(side=tk.LEFT, padx=10)
 
         # Create scrollable canvas for teams
         canvas = tk.Canvas(self.teams_frame)
@@ -257,13 +262,17 @@ class TeamBuilderGUI:
         team_names = sorted(assigned['Team'].dropna().unique())
 
         max_columns = 3  # Adjust this number as desired
-        row, col = 0, 0
+        row, col = 0, 0    
+      
 
         for team_name in team_names:
-            team_df = assigned[assigned['Team'] == team_name]
+            team_df = assigned[assigned['Team'] == team_name]            
 
             frame = ttk.LabelFrame(scrollable_frame, text=team_name)
             frame.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
+
+            avg_skill = team_df["Skill"].mean()
+            ttk.Label(frame, text=f"Average Skill: {avg_skill:.2f}", font=("Arial", 10)).pack(pady=(0, 5))
 
             # Result dropdown
             top_row = ttk.Frame(frame)
@@ -280,7 +289,7 @@ class TeamBuilderGUI:
                 command=lambda _, t=team_name, v=result_var: self.on_result_change(t, v)            )
             result_dropdown.pack(side=tk.LEFT)
 
-            table = ttk.Treeview(frame, columns=("First Name", "Last Name", "Gender", "Skill"), show="headings")
+            table = ttk.Treeview(frame, columns=("First Name", "Last Name", "Gender", "Skill"), show="headings", height=15)
             for col_name in table["columns"]:
                 table.heading(col_name, text=col_name, command=lambda c=col_name, t=table, df=team_df: self.sort_team_table(t, df, c))
                 table.column(col_name, width=100)
@@ -319,7 +328,7 @@ class TeamBuilderGUI:
     def add_player_window(self):
         win = tk.Toplevel(self.root)
         win.title("Add Player")
-        fields = ["First Name", "Last Name", "Gender", "Skill"]
+        fields = ["First Name", "Last Name", "Gender", "Skill", "Drop In"]
         entries = {}
         
         for i, field in enumerate(fields):
@@ -330,6 +339,12 @@ class TeamBuilderGUI:
                 dropdown = ttk.OptionMenu(win, gender_var, "male", "male", "female")
                 dropdown.grid(row=i, column=1, padx=5, pady=5)
                 entries[field] = gender_var
+
+            elif field == "Drop In":
+                drop_in_var = tk.StringVar(value="Drop In")
+                dropdown = ttk.OptionMenu(win, drop_in_var, "Drop In", "Drop In", "Registered")
+                dropdown.grid(row=i, column=1, padx=5, pady=5)
+                entries[field] = drop_in_var
             else:
                 entry = ttk.Entry(win)
                 entry.grid(row=i, column=1, padx=5, pady=5)
@@ -346,12 +361,13 @@ class TeamBuilderGUI:
                 entries["First Name"].get(),
                 entries["Last Name"].get(),
                 entries["Gender"].get(),
-                skill
+                skill,
+                entries["Drop In"].get()
             )
             win.destroy()
             self.refresh_tree()
 
-        ttk.Button(win, text="Add", command=submit).grid(row=4, column=0, columnspan=2, pady=10)
+        ttk.Button(win, text="Add", command=submit).grid(row=5, column=0, columnspan=2, pady=10)
 
     def sort_team_table(self, table, df, column):
         if not hasattr(table, 'last_sorted_column'):

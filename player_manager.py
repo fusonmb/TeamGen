@@ -3,7 +3,7 @@ import pandas as pd
 class PlayerManager:
     def __init__(self):
         self.players = pd.DataFrame(columns=[
-            'First Name', 'Last Name', 'Gender', 'Skill', 'Points' 'Checked In', 'Team', 'New', 'Modified'
+            'First Name', 'Last Name', 'Gender', 'Skill', 'Points' 'Checked In', 'Team', 'New', 'Modified', 'Drop In'
         ])
         
 
@@ -33,8 +33,13 @@ class PlayerManager:
         else:
             new_df['Points'] = 0    
 
+        if 'drop in' in df.columns:
+            new_df['Drop In'] = df['drop in']
+        else:
+            new_df['Drop In'] = 'Registered'
+
         # Add extra columns required by app
-        new_df['Checked In'] = False
+        new_df['Checked In'] = True
         new_df['Team'] = None
         new_df['New'] = False
         new_df['Modified'] = False
@@ -60,7 +65,7 @@ class PlayerManager:
     def get_checked_in_players(self):
         return self.players[self.players['Checked In'] == True]
 
-    def add_player(self, first_name, last_name, gender, skill):
+    def add_player(self, first_name, last_name, gender, skill, drop_in):
         new_player = {
             'First Name': first_name,
             'Last Name': last_name,
@@ -71,6 +76,7 @@ class PlayerManager:
             'Team': None,
             'New': True,
             'Modified': False,
+            "Drop In": drop_in,
             "Order": len(self.players)  # new player added at the end
         }
         self.players = pd.concat([self.players, pd.DataFrame([new_player])], ignore_index=True)
