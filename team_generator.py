@@ -21,32 +21,58 @@ def generate(manager, num_teams, lock_teams=False):
             players = players.sort_values(by=['Skill', '__rand'], ascending=[False, True])
             players = players.drop(columns=['__rand'])
 
-            direction = 1 if start_low else -1
             idx = 0 if start_low else num_teams - 1
             going_up = True if start_low else False
+            snaking = True
+            players_assigned = 0
 
             for player_idx in players.index:
                 team_name = f"Team {idx + 1}"
                 teams[team_name].append(player_idx)
-
-                # Move index
-                if going_up:
-                    idx += 1
-                    if idx >= num_teams:
-                        idx = num_teams - 1
-                        going_up = False
+                players_assigned +=1
+                # print("{} player:{}  assigned to {} Snaking:{}".format(players_assigned,player_idx,team_name,snaking))
+                
+                if snaking:
+                # Snake
+                    if going_up:
+                        idx += 1
+                        if idx >= num_teams:
+                            if(players_assigned < len(players)/2 and (start_low)):
+                                idx = num_teams - 1
+                                going_up = False
+                            else:
+                                snaking = False
+                                idx = 0
+                    else:
+                        idx -= 1
+                        if idx < 0:
+                            if(players_assigned < len(players)/2 and not(start_low)):                                    
+                                idx = 0
+                                going_up = True
+                            else:
+                                snaking = False 
+                                idx = 0
+                # No Snake
                 else:
-                    idx -= 1
-                    if idx < 0:
-                        idx = 0
-                        going_up = True
+                    if not(start_low):
+                        if idx < num_teams-1:
+                            idx += 1
+                        else:
+                            idx = 0
+                    else:
+                        if idx >= 1:
+                            idx -= 1
+                        else:
+                            idx = num_teams-1                        
 
         # Separate by gender
         males = checked_in[checked_in['Gender'].str.lower() == 'male']
         females = checked_in[checked_in['Gender'].str.lower() == 'female']
 
         # Females assigned to highest teams first → snake down
+        # print("Assign Women")
         snake_assign(females, start_low=False)
+        # print("Assign Men")
         # Males assigned to lowest teams first → snake up
         snake_assign(males, start_low=True)
 

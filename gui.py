@@ -11,7 +11,7 @@ class TeamBuilderGUI:
         self.root.title("Team Generator")
 
         self.manager = PlayerManager()
-        self.num_teams = tk.IntVar(value=2)
+        self.num_teams = tk.IntVar(value=2) #should start at 2
         self.check_vars = {}
         self.sort_column = None
         self.sort_reverse = False
@@ -272,7 +272,10 @@ class TeamBuilderGUI:
             frame.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
 
             avg_skill = team_df["Skill"].mean()
-            ttk.Label(frame, text=f"Average Skill: {avg_skill:.2f}", font=("Arial", 10)).pack(pady=(0, 5))
+            total =  len(team_df)
+            num_male = len(team_df[team_df['Gender'].str.lower() == 'male'])
+            num_female = len(team_df[team_df['Gender'].str.lower() == 'female'])
+            ttk.Label(frame, text=f"Players: {total}  Males: {num_male}  Females: {num_female}    Average Skill: {avg_skill:.2f}", font=("Arial", 10)).pack(pady=(0, 5))
 
             # Result dropdown
             top_row = ttk.Frame(frame)
