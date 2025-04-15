@@ -1,4 +1,5 @@
 import pandas as pd
+from tkinter import messagebox
 
 class PlayerManager:
     def __init__(self):
@@ -81,26 +82,30 @@ class PlayerManager:
         }
         self.players = pd.concat([self.players, pd.DataFrame([new_player])], ignore_index=True)
 
-    def update_skill(self, index, new_skill):
-        if self.players.at[index, 'Skill'] != new_skill:
-            self.players.at[index, 'Skill'] = new_skill
-            self.players.at[index, 'Modified'] = True
-
     def set_checked_in(self, index, checked_in):
         self.players.at[index, 'Checked In'] = checked_in
 
     def assign_team(self, index, team_name):
         self.players.at[index, 'Team'] = team_name
 
-    def update_points(self, index, value):
-        if 0 <= index < len(self.players):
-            self.players.at[index, 'Points'] = value
-
     def increment_points(self, index, amount=1):
         if 0 <= index < len(self.players):
             current = self.players.at[index, 'Points']
             self.players.at[index, 'Points'] = current + amount
 
-
     def get_all_players(self):
         return self.players
+    
+    def update_value(self, index, column, value):
+        if column in self.players.columns:
+            if column in ["Skill", "Points"]:
+                try:
+                    value = int(value)
+                    if value < 0:
+                        raise ValueError
+                except ValueError:
+                    from tkinter import messagebox
+                    messagebox.showerror("Invalid Input", f"{column} must be a positive integer")
+                    return
+            self.players.at[index, column] = value
+            self.players.at[index, 'Modified'] = True

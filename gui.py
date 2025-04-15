@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, simpledialog
 import datetime
 import pandas as pd
 from player_manager import PlayerManager
@@ -196,9 +196,10 @@ class TeamBuilderGUI:
                 by=[self.sort_column, '__display_order'],
                 key=lambda col: col.str.lower() if col.dtype == 'object' else col,
                 ascending=[not self.sort_reverse, True]
-            ).drop(columns='__display_order').reset_index(drop=True)
+            ).drop(columns='__display_order')
+            # ).drop(columns='__display_order').reset_index(drop=True)
 
-        for row_num, (_, row) in enumerate(df.iterrows(), start=1):
+        for row_num, (idx, row) in enumerate(df.iterrows(), start=1):
             check_var = tk.BooleanVar(value=bool(row['Checked In']))
             command = lambda name=row['First Name'], last=row['Last Name'], gender=row['Gender'], var=check_var: (
                 self.set_checked_in_by_identity(name, last, gender, var.get()),
@@ -211,16 +212,23 @@ class TeamBuilderGUI:
             ttk.Label(self.inner_frame, text=row['Last Name']).grid(row=row_num, column=2, sticky="nsew")
             ttk.Label(self.inner_frame, text=row['Gender']).grid(row=row_num, column=3, sticky="nsew")
 
-            skill_lbl = ttk.Label(self.inner_frame, text=row['Skill'])
-            skill_lbl.grid(row=row_num, column=4, sticky="nsew")
-            skill_lbl.bind(
-                "<Double-1>",
-                lambda e, fn=row['First Name'], ln=row['Last Name'], g=row['Gender']: self.edit_skill_by_identity(fn, ln, g))
+            # skill_lbl = ttk.Label(self.inner_frame, text=row['Skill'])
+            # skill_lbl.grid(row=row_num, column=4, sticky="nsew")
+            # skill_lbl.bind("<Double-1>",lambda e, fn=row['First Name'], ln=row['Last Name'], g=row['Gender']: self.edit_skill_by_identity(fn, ln, g))            
 
             ttk.Label(self.inner_frame, text=row.get('Points', "")).grid(row=row_num, column=5, sticky="nsew")
             ttk.Label(self.inner_frame, text=row['Team'] if pd.notna(row['Team']) else "").grid(row=row_num, column=6, sticky="nsew")
             
             ttk.Label(self.inner_frame, text=row['Drop In']).grid(row=row_num, column=7, sticky="nsew")
+
+            for col_idx, col_name in enumerate(["First Name", "Last Name", "Gender", "Skill", "Points", "Team", "Drop In"], start=1):
+                val = row.get(col_name, "")
+                label = ttk.Label(self.inner_frame, text=val)
+                label.grid(row=row_num, column=col_idx, sticky="nsew")
+
+                # Bind double-click to edit this cell
+                label.bind("<Double-1>", lambda e, idx=row.name, col=col_name: self.edit_cell(idx, col))
+
         self.num_teams.trace_add("write", lambda *args: self.update_checkin_counts())
 
         self.refresh_team_tables()
@@ -316,17 +324,41 @@ class TeamBuilderGUI:
             self.sort_reverse = False
         self.refresh_tree()
 
-    def edit_skill_by_identity(self, first_name, last_name, gender):
-        df = self.manager.get_all_players()
-        match = df[(df['First Name'] == first_name) & (df['Last Name'] == last_name) & (df['Gender'] == gender)]
+    def edit_cell(self, row_index, column_name):
+         # Show dropdown for specific columns
+        if column_name == "Gender":
+            choices = ["male", "female"]
+        elif column_name == "Drop In":
+            choices = ["Registered", "Drop In"]
+        else:
+            choices = None
 
-        if not match.empty:
-            idx = match.index[0]
-            new_value = tk.simpledialog.askinteger("Edit Skill", f"Enter new skill for {first_name} {last_name}:")
-            if new_value is not None:
-                self.manager.update_skill(idx, new_value)
+        if choices:
+            win = tk.Toplevel(self.root)
+            win.title(f"Edit {column_name}")
+            ttk.Label(win, text=f"Select {column_name}:").pack(padx=10, pady=(10, 5))
+
+            var = tk.StringVar(value=choices[0])
+            combo = ttk.Combobox(win, textvariable=var, values=choices, state="readonly")
+            combo.pack(padx=10, pady=5)
+
+            def submit():
+                selected = var.get()
+                self.manager.update_value(row_index, column_name, selected)
+                win.destroy()
                 self.refresh_tree()
 
+            ttk.Button(win, text="OK", command=submit).pack(pady=10)
+            win.transient(self.root)
+            win.grab_set()
+            self.root.wait_window(win)
+
+        else:
+            # Free-text editing for other fields
+            new_value = simpledialog.askstring("Edit", f"Enter new value for {column_name}:")
+            if new_value is not None:
+                self.manager.update_value(row_index, column_name, new_value)
+                self.refresh_tree()
 
     def add_player_window(self):
         win = tk.Toplevel(self.root)
