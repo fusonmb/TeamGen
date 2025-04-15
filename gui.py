@@ -20,8 +20,8 @@ class TeamBuilderGUI:
         self.team_results = {}
         self.display_order = []
         self.last_sorted_order = []
-
         self.setup_widgets()
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def setup_widgets(self):
 
@@ -510,6 +510,11 @@ class TeamBuilderGUI:
             self.update_team_result_points(team_name, old_result, new_result)
             self.refresh_tree()
             self.update_checkin_counts()  # optional, to keep counters in sync
+
+    def on_close(self):
+        if messagebox.askyesno("Save before Exit", "Do you want to save the CSV before closing?"):
+            self.save_csv()
+        self.root.destroy()
 
 if __name__ == "__main__":
     root = tk.Tk()
