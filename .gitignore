@@ -44,4 +44,8 @@ build/TeamBuilder/localpycs/pyimod02_importers.pyc
 build/TeamBuilder/localpycs/pyimod03_ctypes.pyc
 build/TeamBuilder/localpycs/pyimod04_pywin32.pyc
 dist/TeamBuilder.exe
+dist/TeamBuilder.app
+dist/*
+build/*
+.DS_Store
 build/TeamBuilder/localpycs/struct.pyc
