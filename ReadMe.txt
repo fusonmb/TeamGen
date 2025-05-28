@@ -1,1 +1,0 @@
-python -m PyInstaller --noconsole --onefile --icon=frisbee-24.ico --add-data "frisbee-24.ico;." --name TeamBuilder  main.py
